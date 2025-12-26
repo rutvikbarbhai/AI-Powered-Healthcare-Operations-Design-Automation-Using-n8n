@@ -1,0 +1,1297 @@
+{
+  "name": "AI-Powered Healthcare Operations Redesign and Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "b448bd23-d94b-4a82-84d0-b64979029366",
+      "name": "Schedule - Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -4080,
+        4048
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "schedulingSystemUrl",
+              "value": "<__PLACEHOLDER_VALUE__Scheduling System API URL__>",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "insuranceApiUrl",
+              "value": "<__PLACEHOLDER_VALUE__Insurance Eligibility API URL__>",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "preAuthPortalUrl",
+              "value": "<__PLACEHOLDER_VALUE__Pre-Authorization Portal API URL__>",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "daysAheadToCheck",
+              "value": 7,
+              "type": "number"
+            },
+            {
+              "id": "id-5",
+              "name": "preAuthRequiredCodes",
+              "value": "[\"99213\", \"99214\", \"99215\", \"70450\", \"70460\", \"70470\", \"71250\", \"71260\", \"71270\", \"72125\", \"72126\", \"72127\", \"73200\", \"73201\", \"73202\"]",
+              "type": "array"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "956b1224-4b58-43c6-a82f-424c217da72f",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3856,
+        4048
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://mock.api/scheduling/appointments?days=7",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer mock-token-123"
+            },
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "8977be5a-a4b8-4af5-9f1d-d1b725641fb7",
+      "name": "Fetch Scheduled Appointments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3632,
+        4048
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"appointmentId\": \"{{ $json.appointment_id }}\",\n  \"patientId\": \"{{ $json.patient_id }}\",\n  \"patientName\": \"{{ $json.patient_name }}\",\n  \"insuranceProvider\": \"{{ $json.insurance_provider }}\",\n  \"procedureCode\": \"{{ $json.procedure_code }}\",\n  \"diagnosisCode\": \"{{ $json.diagnosis_code }}\",\n  \"appointmentDate\": \"{{ $json.appointment_date }}\"\n}\n",
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "2a44f0d5-a83f-461f-b188-c318c2509cef",
+      "name": "Extract Patient & Procedure Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3408,
+        4048
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://httpbin.org/post\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"patient_id\": \"{{ $json.patientId }}\",\n  \"insurance_provider\": \"{{ $json.insuranceProvider }}\",\n  \"procedure_code\": \"{{ $json.procedureCode }}\",\n  \"diagnosis_code\": \"{{ $json.diagnosisCode }}\"\n}\n",
+        "options": {}
+      },
+      "id": "263fd514-31d0-4416-b085-305f7c90921e",
+      "name": "Check Insurance Eligibility API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -3184,
+        4048
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.pre_auth_required }}\n",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $('Workflow Configuration').first().json.preAuthRequiredCodes }}\n",
+              "rightValue": "={{ $json.procedure_code }}\n",
+              "operator": {
+                "type": "array",
+                "operation": "contains",
+                "rightType": "any"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "89dd26c1-9c4c-4781-95b6-73f2adb8c349",
+      "name": "Is Pre-Auth Required?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2960,
+        4048
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate a structured insurance pre-authorization request using the data below.\n\nPatient ID: {{ $json.patient_id }}\nInsurance Provider: {{ $json.insurance_provider }}\nProcedure Code (CPT): {{ $json.procedure_code }}\nDiagnosis Code (ICD-10): {{ $json.diagnosis_code }}\nAppointment Date: {{ $json.appointment_date }}\n\nReturn ONLY valid JSON with the following structure:\n\n{\n  \"request_id\": \"PA-YYYYMMDD-XXXX\",\n  \"patient_id\": \"\",\n  \"insurance_provider\": \"\",\n  \"procedure_code\": \"\",\n  \"diagnosis_code\": \"\",\n  \"clinical_justification\": \"\",\n  \"urgency\": \"routine | urgent\",\n  \"generated_at\": \"\"\n}\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a healthcare insurance pre-authorization assistant.\n\nRules:\n- Output must be valid JSON only\n- Do not include markdown\n- Do not include explanations\n- Generate realistic clinical justification\n- Ensure request_id is unique\n"
+        }
+      },
+      "id": "3c3301fc-42c3-4a28-8d8a-3dc4aa8cee35",
+      "name": "AI Pre-Auth Request Generator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -2736,
+        3920
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"request_id\": \"PA-20251224-4839\",\n  \"patient_id\": \"PAT-123\",\n  \"insurance_provider\": \"Blue Cross\",\n  \"procedure_code\": \"99213\",\n  \"diagnosis_code\": \"I10\",\n  \"clinical_justification\": \"Patient requires evaluation and management of essential hypertension during outpatient visit.\",\n  \"urgency\": \"routine\",\n  \"generated_at\": \"2025-12-24T06:05:00Z\"\n}\n"
+      },
+      "id": "8e11c03e-4502-45c9-934c-6e9c20b11e17",
+      "name": "Structured Pre-Auth Output",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2592,
+        4144
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://httpbin.org/post\n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"request_id\": \"{{ $json.request_id }}\",\n  \"patient_id\": \"{{ $json.patient_id }}\",\n  \"insurance_provider\": \"{{ $json.insurance_provider }}\",\n  \"procedure_code\": \"{{ $json.procedure_code }}\",\n  \"diagnosis_code\": \"{{ $json.diagnosis_code }}\",\n  \"clinical_justification\": \"{{ $json.clinical_justification }}\",\n  \"urgency\": \"{{ $json.urgency }}\"\n}\n",
+        "options": {}
+      },
+      "id": "7d56e1f2-5e5c-4a1e-9bc0-e482c4babf7a",
+      "name": "Submit Pre-Auth to Insurance Portal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2384,
+        3920
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "name",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pre_auth_requests"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "patient_id": "=PAT-123\n",
+            "patient_name": "=John Doe\n",
+            "insurance_provider": "=Blue Cross\n",
+            "procedure_code": "=99213\n",
+            "status": "submitted",
+            "auth_reference_id": "AUTH-MOCK-001",
+            "requested_at": "2025-12-26T00:00:00",
+            "updated_at": "2025-12-26T00:00:00"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "patient_id",
+              "displayName": "patient_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "patient_name",
+              "displayName": "patient_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "procedure_code",
+              "displayName": "procedure_code",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "insurance_provider",
+              "displayName": "insurance_provider",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "auth_required",
+              "displayName": "auth_required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "auth_reference_id",
+              "displayName": "auth_reference_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "denial_reason",
+              "displayName": "denial_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "requested_at",
+              "displayName": "requested_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "request_id",
+              "displayName": "request_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "414ff921-4865-4bad-a55a-5477b21b4d13",
+      "name": "Log Pre-Auth Request to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2160,
+        3920
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "AGbzXtJe9CccoVjb",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "id": "e9ac9197-104c-4ca2-89ba-7427b2549a39",
+      "name": "Wait for Insurance Response",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1936,
+        3920
+      ],
+      "webhookId": "7cc714b2-f1cc-4289-8ce3-621bbac21214"
+    },
+    {
+      "parameters": {
+        "url": "https://httpbin.org/get",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e03f9b5e-8c75-41e9-8b40-fa4930e2fc67",
+      "name": "Check Pre-Auth Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1712,
+        3920
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8f92cc3e-aaf6-40c2-b2d8-7ace53ca7259",
+      "name": "Check Approval Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1488,
+        3920
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pre_auth_requests"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $json.request_id }}",
+            "status": "approved",
+            "approval_number": "={{ $json.approvalNumber }}",
+            "approval_timestamp": "={{ new Date().toISOString() }}",
+            "response_data": "={{ JSON.stringify($json) }}"
+          },
+          "matchingColumns": [
+            "request_id"
+          ],
+          "schema": [
+            {
+              "id": "request_id",
+              "displayName": "request_id",
+              "required": false,
+              "defaultMatch": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "approval_number",
+              "displayName": "approval_number",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "approval_timestamp",
+              "displayName": "approval_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "response_data",
+              "displayName": "response_data",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3d2f0c9f-56e6-4eb3-b8a0-c0183b0652ed",
+      "name": "Update Status - Approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1040,
+        3824
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "AGbzXtJe9CccoVjb",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pre_auth_requests"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "=PA-20231006-0012",
+            "status": "=denied",
+            "denial_reason": "=Procedure not covered under insurance policy\n"
+          },
+          "matchingColumns": [
+            "request_id"
+          ],
+          "schema": [
+            {
+              "id": "request_id",
+              "displayName": "request_id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "denial_reason",
+              "displayName": "denial_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "missing_info",
+              "displayName": "missing_info",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "last_checked",
+              "displayName": "last_checked",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "response_data",
+              "displayName": "response_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "fd493aa8-c088-4cf3-b691-3956170a9650",
+      "name": "Update Status - Denied/Pending",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1264,
+        4016
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "AGbzXtJe9CccoVjb",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0A5FBRKGDA",
+          "mode": "id"
+        },
+        "text": "=:warning: *Pre-Authorization Action Required*\n\n*Patient:* {{ $('Extract Patient & Procedure Data').first().json.patientName }}\n*Procedure:* {{ $('AI Pre-Auth Request Generator').first().json.output.procedureInfo.description }} ({{ $('AI Pre-Auth Request Generator').first().json.output.procedureInfo.cptCode }})\n*Appointment:* {{ $('Extract Patient & Procedure Data').first().json.appointmentDate }}\n*Status:* {{ $json.status }}\n*Reason:* {{ $json.denialReason || $json.missingInformation }}\n\n*Request ID:* {{ $('AI Pre-Auth Request Generator').first().json.output.requestId }}\n\nPlease review and take appropriate action in the pre-auth system.",
+        "otherOptions": {}
+      },
+      "id": "a34f16ba-b859-4faa-a6d6-a270b336f0a9",
+      "name": "Alert Staff - Denial/Action Required",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        -1040,
+        4016
+      ],
+      "webhookId": "2073b388-4c05-4abd-9632-a4e36b825b3d",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "PEIFTwqnAs4j9cCc",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "pre_auth_requests"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "patient_id": "={{ $json.patientId }}",
+            "patient_name": "={{ $json.patientName }}",
+            "insurance_provider": "={{ $json.insuranceProvider }}",
+            "procedure_code": "={{ $json.procedureCode }}",
+            "procedure_description": "={{ $json.procedureDescription }}",
+            "diagnosis_code": "={{ $json.diagnosisCode }}",
+            "appointment_date": "={{ $json.appointmentDate }}",
+            "status": "no_auth_required",
+            "checked_timestamp": "={{ $now }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "13971d1d-5b94-432a-b773-ba5d5d80cb21",
+      "name": "Log No Pre-Auth Needed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1040,
+        4240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "AGbzXtJe9CccoVjb",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate comprehensive analytics metrics for pre-authorization workflow\n\nconst items = $input.all();\n\n// Initialize counters and accumulators\nlet totalRequests = items.length;\nlet approvedCount = 0;\nlet deniedCount = 0;\nlet pendingCount = 0;\nlet noPreAuthCount = 0;\nlet totalProcessingTime = 0;\nlet denialReasons = {};\nlet procedureCounts = {};\nlet insuranceProviderStats = {};\n\n// Process each item\nfor (const item of items) {\n  const data = item.json;\n  \n  // Count status types\n  const status = data.status?.toLowerCase() || '';\n  if (status === 'approved') {\n    approvedCount++;\n  } else if (status === 'denied') {\n    deniedCount++;\n  } else if (status === 'pending') {\n    pendingCount++;\n  } else if (status === 'no_preauth_required') {\n    noPreAuthCount++;\n  }\n  \n  // Calculate processing time (if timestamps available)\n  if (data.submittedAt && data.completedAt) {\n    const submitted = new Date(data.submittedAt);\n    const completed = new Date(data.completedAt);\n    const processingTime = (completed - submitted) / (1000 * 60 * 60); // hours\n    totalProcessingTime += processingTime;\n  }\n  \n  // Track denial reasons\n  if (status === 'denied' && data.denialReason) {\n    denialReasons[data.denialReason] = (denialReasons[data.denialReason] || 0) + 1;\n  }\n  \n  // Track procedures requiring pre-auth\n  if (data.procedure && status !== 'no_preauth_required') {\n    procedureCounts[data.procedure] = (procedureCounts[data.procedure] || 0) + 1;\n  }\n  \n  // Track insurance provider statistics\n  if (data.insuranceProvider) {\n    if (!insuranceProviderStats[data.insuranceProvider]) {\n      insuranceProviderStats[data.insuranceProvider] = {\n        total: 0,\n        approved: 0,\n        denied: 0,\n        pending: 0\n      };\n    }\n    insuranceProviderStats[data.insuranceProvider].total++;\n    if (status === 'approved') insuranceProviderStats[data.insuranceProvider].approved++;\n    if (status === 'denied') insuranceProviderStats[data.insuranceProvider].denied++;\n    if (status === 'pending') insuranceProviderStats[data.insuranceProvider].pending++;\n  }\n}\n\n// Calculate rates and averages\nconst requestsRequiringPreAuth = totalRequests - noPreAuthCount;\nconst approvalRate = requestsRequiringPreAuth > 0 ? (approvedCount / requestsRequiringPreAuth * 100).toFixed(2) : 0;\nconst denialRate = requestsRequiringPreAuth > 0 ? (deniedCount / requestsRequiringPreAuth * 100).toFixed(2) : 0;\nconst averageProcessingTime = requestsRequiringPreAuth > 0 ? (totalProcessingTime / requestsRequiringPreAuth).toFixed(2) : 0;\n\n// Sort and get top denial reasons\nconst topDenialReasons = Object.entries(denialReasons)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 5)\n  .map(([reason, count]) => ({ reason, count, percentage: ((count / deniedCount) * 100).toFixed(2) }));\n\n// Sort and get procedures requiring most pre-auths\nconst topProcedures = Object.entries(procedureCounts)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 10)\n  .map(([procedure, count]) => ({ procedure, count }));\n\n// Calculate insurance provider denial rates\nconst insuranceProviderDenialRates = Object.entries(insuranceProviderStats)\n  .map(([provider, stats]) => ({\n    provider,\n    totalRequests: stats.total,\n    approvedCount: stats.approved,\n    deniedCount: stats.denied,\n    pendingCount: stats.pending,\n    denialRate: stats.total > 0 ? ((stats.denied / stats.total) * 100).toFixed(2) : 0,\n    approvalRate: stats.total > 0 ? ((stats.approved / stats.total) * 100).toFixed(2) : 0\n  }))\n  .sort((a, b) => parseFloat(b.denialRate) - parseFloat(a.denialRate));\n\n// Estimate time saved vs manual processing\n// Assuming manual processing takes ~45 minutes per request, automated takes ~2 hours but is hands-off\nconst manualTimePerRequest = 0.75; // hours\nconst automatedHandsOnTime = 0.05; // hours (just review time)\nconst timeSavedPerRequest = manualTimePerRequest - automatedHandsOnTime;\nconst totalTimeSaved = (timeSavedPerRequest * totalRequests).toFixed(2);\nconst timeSavedPercentage = ((timeSavedPerRequest / manualTimePerRequest) * 100).toFixed(2);\n\n// Construct analytics output\nconst analytics = {\n  summary: {\n    totalRequestsProcessed: totalRequests,\n    requestsRequiringPreAuth: requestsRequiringPreAuth,\n    noPreAuthRequired: noPreAuthCount,\n    approvedCount,\n    deniedCount,\n    pendingCount,\n    approvalRate: `${approvalRate}%`,\n    denialRate: `${denialRate}%`,\n    averageProcessingTimeHours: parseFloat(averageProcessingTime)\n  },\n  denialAnalysis: {\n    totalDenials: deniedCount,\n    topDenialReasons: topDenialReasons\n  },\n  procedureAnalysis: {\n    topProceduresRequiringPreAuth: topProcedures\n  },\n  insuranceProviderAnalysis: {\n    providerStats: insuranceProviderDenialRates\n  },\n  efficiencyMetrics: {\n    totalTimeSavedHours: parseFloat(totalTimeSaved),\n    timeSavedPercentage: `${timeSavedPercentage}%`,\n    averageManualTimePerRequest: manualTimePerRequest,\n    averageAutomatedHandsOnTime: automatedHandsOnTime,\n    estimatedCostSavings: `$${(parseFloat(totalTimeSaved) * 50).toFixed(2)}` // Assuming $50/hour labor cost\n  },\n  timestamp: new Date().toISOString(),\n  reportingPeriod: {\n    start: items[0]?.json?.createdAt || new Date().toISOString(),\n    end: items[items.length - 1]?.json?.createdAt || new Date().toISOString()\n  }\n};\n\nreturn [{ json: analytics }];"
+      },
+      "id": "3ec57e89-97bd-4d9d-b2d3-2daf0c6a5893",
+      "name": "Calculate Analytics Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        4016
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "pre_auth_analytics",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "no_preauth_required": 0,
+            "approved_count": 0,
+            "pending_count": 0,
+            "approval_rate": 0,
+            "metric_timestamp": "2025-12-25T19:05:20",
+            "period_start": "2025-12-25T19:00:00",
+            "period_end": "2025-12-25T19:05:20",
+            "total_requests_processed": 1,
+            "requests_requiring_preauth": 1,
+            "denied_count": 1,
+            "denial_rate": 100,
+            "average_processing_time_hours": 0.75,
+            "total_time_saved_hours": 0.7,
+            "time_saved_percentage": 93.33,
+            "estimated_cost_savings": 35,
+            "top_denial_reasons": "{}",
+            "top_procedures_requiring_preauth": "{}",
+            "insurance_provider_stats": "{}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "metric_timestamp",
+              "displayName": "metric_timestamp",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "period_start",
+              "displayName": "period_start",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "period_end",
+              "displayName": "period_end",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total_requests_processed",
+              "displayName": "total_requests_processed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requests_requiring_preauth",
+              "displayName": "requests_requiring_preauth",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "no_preauth_required",
+              "displayName": "no_preauth_required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approved_count",
+              "displayName": "approved_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "denied_count",
+              "displayName": "denied_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pending_count",
+              "displayName": "pending_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "approval_rate",
+              "displayName": "approval_rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "denial_rate",
+              "displayName": "denial_rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "average_processing_time_hours",
+              "displayName": "average_processing_time_hours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total_time_saved_hours",
+              "displayName": "total_time_saved_hours",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "time_saved_percentage",
+              "displayName": "time_saved_percentage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estimated_cost_savings",
+              "displayName": "estimated_cost_savings",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "top_denial_reasons",
+              "displayName": "top_denial_reasons",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "top_procedures_requiring_preauth",
+              "displayName": "top_procedures_requiring_preauth",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "insurance_provider_stats",
+              "displayName": "insurance_provider_stats",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "2db59c77-99d2-40dd-a738-edc4b6610a39",
+      "name": "Store Analytics Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        32,
+        4016
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "AGbzXtJe9CccoVjb",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "870fca56-5fd0-483f-a247-37c83ab05b48",
+      "name": "OpenAI GPT-4",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -2768,
+        4144
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "de2zkxatWOU0IjmH",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "rutvikbarbhai@gmail.com",
+        "subject": "Insurance Pre-Authorization Update ",
+        "message": "<!DOCTYPE html> <html>   <body style=\"font-family: Arial, Helvetica, sans-serif; color: #333333; line-height: 1.6;\">      <p>Hello,</p>      <p>       We wanted to inform you that the insurance pre-authorization request has been       <strong style=\"color: #c0392b;\">denied</strong>.     </p>      <hr style=\"border: none; border-top: 1px solid #dddddd; margin: 20px 0;\" />      <h3 style=\"margin-bottom: 10px;\">Pre-Authorization Details</h3>      <table style=\"border-collapse: collapse; width: 100%; max-width: 500px;\">       <tr>         <td style=\"padding: 6px 0; font-weight: bold;\">Patient Name</td>         <td style=\"padding: 6px 0;\">John Doe</td>       </tr>       <tr>         <td style=\"padding: 6px 0; font-weight: bold;\">Procedure Code</td>         <td style=\"padding: 6px 0;\">99213</td>       </tr>       <tr>         <td style=\"padding: 6px 0; font-weight: bold;\">Insurance Provider</td>         <td style=\"padding: 6px 0;\">Blue Cross</td>       </tr>       <tr>         <td style=\"padding: 6px 0; font-weight: bold;\">Status</td>         <td style=\"padding: 6px 0; color: #c0392b; font-weight: bold;\">Denied</td>       </tr>     </table>      <p style=\"margin-top: 15px;\">       <strong>Reason for Denial:</strong><br />       Procedure not covered under insurance policy     </p>      <hr style=\"border: none; border-top: 1px solid #dddddd; margin: 20px 0;\" />      <p>       Please review the case and take the necessary next steps.       If required, additional documentation or alternative options may be discussed.     </p>      <p style=\"margin-top: 25px;\">       Regards,<br />       <strong>Hospital Pre-Authorization Team</strong>     </p>    </body> </html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -784,
+        4016
+      ],
+      "id": "cadd4d02-889e-4630-a523-105e0541c69a",
+      "name": "Notify Patient Via Automated Email",
+      "webhookId": "fc92e4c3-c390-415a-bc85-897d20352dbe",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OutdjYxeFLkdU8OW",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Fetch Scheduled Appointments": [
+      {
+        "json": {
+          "appointment_id": "APT-001",
+          "patient_id": "PAT-123",
+          "patient_name": "John Doe",
+          "insurance_provider": "Blue Cross",
+          "procedure_code": "99213",
+          "diagnosis_code": "I10",
+          "appointment_date": "2025-01-05"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Schedule - Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Fetch Scheduled Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Scheduled Appointments": {
+      "main": [
+        [
+          {
+            "node": "Extract Patient & Procedure Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Patient & Procedure Data": {
+      "main": [
+        [
+          {
+            "node": "Check Insurance Eligibility API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Insurance Eligibility API": {
+      "main": [
+        [
+          {
+            "node": "Is Pre-Auth Required?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Pre-Auth Required?": {
+      "main": [
+        [
+          {
+            "node": "AI Pre-Auth Request Generator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Pre-Auth Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Pre-Auth Output": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Pre-Auth Request Generator",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Pre-Auth Request Generator": {
+      "main": [
+        [
+          {
+            "node": "Submit Pre-Auth to Insurance Portal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Submit Pre-Auth to Insurance Portal": {
+      "main": [
+        [
+          {
+            "node": "Log Pre-Auth Request to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Pre-Auth Request to Database": {
+      "main": [
+        [
+          {
+            "node": "Wait for Insurance Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Insurance Response": {
+      "main": [
+        [
+          {
+            "node": "Check Pre-Auth Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Pre-Auth Status": {
+      "main": [
+        [
+          {
+            "node": "Check Approval Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Approval Status": {
+      "main": [
+        [
+          {
+            "node": "Update Status - Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Status - Denied/Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status - Denied/Pending": {
+      "main": [
+        [
+          {
+            "node": "Alert Staff - Denial/Action Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status - Approved": {
+      "main": [
+        [
+          {
+            "node": "Calculate Analytics Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log No Pre-Auth Needed": {
+      "main": [
+        [
+          {
+            "node": "Calculate Analytics Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Staff - Denial/Action Required": {
+      "main": [
+        [
+          {
+            "node": "Notify Patient Via Automated Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Analytics Metrics": {
+      "main": [
+        [
+          {
+            "node": "Store Analytics Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Pre-Auth Request Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Patient Via Automated Email": {
+      "main": [
+        [
+          {
+            "node": "Calculate Analytics Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "36f36541-bf72-45c6-8c3c-5f9fdc4b25be",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "04689c59dda20f7b4b347344bfff9d5c5e4dc3a3cadf8115623c78351a6aa8db"
+  },
+  "id": "lypUc3mDtAQv5K9E",
+  "tags": []
+}
