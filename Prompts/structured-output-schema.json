@@ -1,0 +1,12 @@
+{
+  "request_id": "string",
+  "patient_id": "string",
+  "insurance_provider": "string",
+  "procedure_code": "string",
+  "diagnosis_code": "string",
+  "clinical_justification": "string",
+  "medical_necessity_statement": "string",
+  "urgency_level": "Routine | Urgent | Emergent",
+  "confidence": "high | medium | low",
+  "human_review_required": "boolean"
+}
