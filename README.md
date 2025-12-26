@@ -62,7 +62,8 @@ Schedule → Verify → Decide → Generate → Submit → Track → Notify → 
 ---
 
 ## <img src="https://github.com/user-attachments/assets/6672ee8c-15ed-4fb5-9cd5-63c04ac747c1" height="24px" style="vertical-align:bottom;">  System Architecture 
-<img width="1919" height="856" alt="Screenshot 2025-12-26 021456 (1)" src="https://github.com/user-attachments/assets/ebab9f0d-0652-458a-9ba0-ee1a1889e9ab" />
+https://github.com/user-attachments/assets/1835ed0c-7c26-4740-bcb7-bb5d4f84a5b1
+
 
 ### 1️⃣ Scheduler — Every 15 Minutes
 **Node:** Schedule - Every 15 Minutes  
