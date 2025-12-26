@@ -1,4 +1,4 @@
-# Workflows Screenshot Simulation
+# Workflow Simulation
 
 
 https://github.com/user-attachments/assets/1835ed0c-7c26-4740-bcb7-bb5d4f84a5b1
