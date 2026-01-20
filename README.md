@@ -15,7 +15,7 @@ This system mirrors **real hospital pre-authorization pipelines**, combining sch
 └── README.md
 ```
 
-## ✨ Problem Statement
+## <img src="https://github.com/user-attachments/assets/1e084ddf-423a-4ce8-8853-d917c0a96579" height="28px" style="vertical-align:text-bottom;"> Problem Statement
 
 In hospitals, insurance pre-authorization for procedures such as **MRIs, CT scans, and surgeries** is one of the most inefficient workflows.
 ### Observed Issues
